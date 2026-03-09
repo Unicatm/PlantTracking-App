@@ -2,27 +2,33 @@ import os
 from flask import Flask
 from dotenv import load_dotenv
 from models.models import db
+from flask_jwt_extended import JWTManager
 
 load_dotenv()
-
-db_user = os.getenv('DB_USER')
-db_password = os.getenv('DB_PASSWORD')
-db_host = os.getenv('DB_HOST')
-db_name = os.getenv('DB_NAME')
+jwt=JWTManager()
 
 from routes.perenual_api import perenual_bp
 from routes.plants import plants_bp
+from routes.folders import folders_bp
+from routes.auth import auth_bp
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{db_user}:{db_password}@{db_host}/{db_name}"
+app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'default-jwt-secret')
+
 db.init_app(app)
+jwt.init_app(app)
 
 with app.app_context():
     db.create_all()
 
 app.register_blueprint(perenual_bp)
 app.register_blueprint(plants_bp)
+app.register_blueprint(folders_bp)
+app.register_blueprint(auth_bp)
 
 @app.route('/')
 def index():
