@@ -3,6 +3,7 @@ from flask import Flask
 from dotenv import load_dotenv
 from models.models import db
 from flask_jwt_extended import JWTManager
+from flask_cors import CORS
 
 load_dotenv()
 jwt=JWTManager()
@@ -11,8 +12,11 @@ from routes.perenual_api import perenual_bp
 from routes.plants import plants_bp
 from routes.folders import folders_bp
 from routes.auth import auth_bp
+from routes.users import user_bp
 
 app = Flask(__name__)
+
+CORS(app)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
 
@@ -29,10 +33,11 @@ app.register_blueprint(perenual_bp)
 app.register_blueprint(plants_bp)
 app.register_blueprint(folders_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(user_bp)
 
 @app.route('/')
 def index():
     return "Mergeee!"
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0',debug=True)
