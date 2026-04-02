@@ -28,6 +28,25 @@ def get_plants():
         
     return jsonify({"status": "success", "data": plant_list}), 200
 
+@plants_bp.route("/<int:folder_id>",methods=["GET"])
+@jwt_required()
+def get_plants_byFolder(folder_id):
+    user_id = int(get_jwt_identity())
+
+    users_plants = UserPlant.query.filter_by(user_id=user_id,folder_id=folder_id).all()
+
+    plant_list = []
+    for plant in users_plants:
+        plant_list.append({
+            "id": plant.id,
+            "nickname": plant.nickname,
+            "api_plant_id": plant.api_plant_id,
+            "folder_id": plant.folder_id,
+            "last_watered": plant.last_watered.isoformat() if plant.last_watered else None
+        })
+        
+    return jsonify({"status": "success", "data": plant_list}), 200
+
 @plants_bp.route("/",methods=['POST'])
 @jwt_required()
 def add_plant():

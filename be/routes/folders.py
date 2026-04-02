@@ -4,6 +4,26 @@ from models.models import db, Folder
 
 folders_bp = Blueprint('folders',__name__,url_prefix="/api/folders")
 
+@folders_bp.route("/",methods=['GET'])
+@jwt_required()
+def get_folders():
+    user_id = int(get_jwt_identity())
+
+    try:
+        user_folders = Folder.query.filter_by(user_id=user_id).all()
+
+        folder_list = []
+        for folder in user_folders:
+            folder_list.append({
+                "id": folder.id,
+                "name": folder.name,
+        })
+
+        return jsonify({"status": "success", "data": folder_list}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error displaing folders for a user: {str(e)}"}), 500
+
 @folders_bp.route("/",methods=['POST'])
 @jwt_required()
 def add_folder():

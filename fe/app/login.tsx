@@ -16,6 +16,7 @@ import { Input, InputField } from "@/components/ui/input";
 import { login } from "../api/auth";
 import AuthHeader from "@/components/app/auth/AuthHeader";
 import GradientButton from "@/components/app/ui/GradientButton";
+import { useAuth } from "@/context/AuthContext";
 
 type LoginValues = {
   email: string;
@@ -39,6 +40,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const [error, setError] = useState("");
 
+  const { loginAuth } = useAuth();
+
   const {
     control,
     handleSubmit,
@@ -49,8 +52,7 @@ export default function LoginScreen() {
     try {
       const response = await login(data);
 
-      await AsyncStorage.setItem("userToken", response.access_token);
-      router.replace("/" as Href);
+      await loginAuth(response.access_token);
     } catch (error) {
       setError("Something went wrong! Try again!");
     }
@@ -144,7 +146,10 @@ export default function LoginScreen() {
                 onPress={handleSubmit(onSubmit, onError)}
               />
 
-              <Button variant="link" onPress={() => router.push("/register" as Href)}>
+              <Button
+                variant="link"
+                onPress={() => router.push("/register" as Href)}
+              >
                 <ButtonText className="font-normal text-black/50">
                   You don&apos;t have an account? Register
                 </ButtonText>

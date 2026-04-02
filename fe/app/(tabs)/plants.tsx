@@ -1,0 +1,83 @@
+import React, { useEffect, useState } from "react";
+import { FlatList, ActivityIndicator } from "react-native";
+import { useRouter, Href } from "expo-router";
+
+import { Text } from "@/components/ui/text";
+import { Box } from "@/components/ui/box";
+import { Ionicons } from "@expo/vector-icons";
+
+import { getFolders } from "../../api/folders";
+import FolderCard from "@/components/app/ui/Folders/FolderCard";
+
+type Folder = {
+  id: number;
+  name: string;
+};
+
+export default function Plants() {
+  const router = useRouter();
+
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchFolders = async () => {
+      try {
+        setIsLoading(true);
+        setError("");
+
+        const response = await getFolders();
+
+        if (response.status === "success") {
+          setFolders(response.data ?? []);
+        }
+      } catch (error) {
+        setError("Error at getting the folders");
+        console.error("Error at getting folders", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFolders();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <Box className="flex-1 justify-center items-center bg-background-light">
+        <ActivityIndicator size="large" color="#22c55e" />
+      </Box>
+    );
+  }
+
+  return (
+    <Box className="flex-1 bg-background-light px-6 pt-16">
+      <Text className="text-4xl font-extrabold text-primary-950 mb-6">
+        My Gardens
+      </Text>
+
+      {folders?.length === 0 ? (
+        <Box className="items-center justify-center mt-32">
+          <Ionicons name="leaf-outline" size={80} color="#d4d4d4" />
+          <Text className="text-gray-500 text-lg mt-4 font-medium">
+            You don&apos;t have any folders yet.
+          </Text>
+        </Box>
+      ) : (
+        <FlatList
+          data={folders}
+          keyExtractor={(item) => item.id.toString()}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          renderItem={({ item }) => (
+            <FolderCard
+              name={item.name}
+              onPress={() => router.push(`/folder/${item.id}` as Href)}
+            />
+          )}
+        />
+      )}
+    </Box>
+  );
+}
