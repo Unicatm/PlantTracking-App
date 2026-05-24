@@ -11,6 +11,11 @@ export const createFolder = async (name) => {
 };
 
 export const updateFolder = async (folderId, name) => {
-  const response = await api.put(`/api/folders/${folderId}`, { name });
+  const response = await api.put(`/folders/${folderId}`, { name });
+  return response.data;
+};
+
+export const deleteFolder = async (folderId) => {
+  const response = await api.delete(`/folders/${folderId}`);
   return response.data;
 };

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   TouchableOpacity,
@@ -10,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Box } from "@/components/ui/box";
 import { Text } from "@/components/ui/text";
+import { deletePlant } from "@/api/plants";
 import { getPlantDetails } from "@/api/perenual";
 
 type PlantDetails = {
@@ -73,7 +75,7 @@ function DetailRow({
 
 export default function PlantDetailsScreen() {
   const router = useRouter();
-  const { apiPlantId, nickname, lastWatered, folderName } =
+  const { id, apiPlantId, nickname, lastWatered, folderName } =
     useLocalSearchParams<{
       id: string;
       apiPlantId: string;
@@ -121,6 +123,29 @@ export default function PlantDetailsScreen() {
     details?.default_image?.medium_url ??
     details?.default_image?.original_url;
 
+  const handleDeletePlant = () => {
+    Alert.alert(
+      "Delete plant",
+      `Are you sure you want to delete "${displayName}" from this garden?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deletePlant(id);
+              router.back();
+            } catch (error) {
+              setError("Error at deleting the plant");
+              console.error("Error at deleting plant", error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <Box className="flex-1 justify-center items-center bg-background-light">
@@ -156,6 +181,14 @@ export default function PlantDetailsScreen() {
                 {displayName}
               </Text>
             </Box>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleDeletePlant}
+              className="w-11 h-11 rounded-full bg-red-50 items-center justify-center border border-red-100"
+            >
+              <Ionicons name="trash-outline" size={22} color="#ef4444" />
+            </TouchableOpacity>
           </Box>
 
           <Box className="h-56 rounded-3xl overflow-hidden bg-primary-100 border border-primary-200 mb-6 items-center justify-center">
