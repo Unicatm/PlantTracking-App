@@ -23,6 +23,14 @@ export default function RootLayout() {
             name="register"
             options={{ title: "Register", headerShown: false }}
           />
+          <Stack.Screen
+            name="folder/[id]"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="plant/[id]"
+            options={{ headerShown: false }}
+          />
         </Stack>
       </AuthProvider>
     </GluestackUIProvider>

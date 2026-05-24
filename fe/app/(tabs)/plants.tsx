@@ -8,6 +8,9 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { getFolders } from "../../api/folders";
 import FolderCard from "@/components/app/ui/Folders/FolderCard";
+import { Button, ButtonIcon } from "@/components/ui/button";
+import { AddIcon } from "@/components/ui/icon";
+import CreateFolderModal from "@/components/app/ui/Folders/FolderModal";
 
 type Folder = {
   id: number;
@@ -15,31 +18,33 @@ type Folder = {
 };
 
 export default function Plants() {
-  const router = useRouter();
-
   const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const fetchFolders = async () => {
-      try {
-        setIsLoading(true);
-        setError("");
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
-        const response = await getFolders();
+  const router = useRouter();
 
-        if (response.status === "success") {
-          setFolders(response.data ?? []);
-        }
-      } catch (error) {
-        setError("Error at getting the folders");
-        console.error("Error at getting folders", error);
-      } finally {
-        setIsLoading(false);
+  const fetchFolders = async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const response = await getFolders();
+
+      if (response.status === "success") {
+        setFolders(response.data ?? []);
       }
-    };
+    } catch (error) {
+      setError("Error at getting the folders");
+      console.error("Error at getting folders", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchFolders();
   }, []);
 
@@ -53,15 +58,26 @@ export default function Plants() {
 
   return (
     <Box className="flex-1 bg-background-light px-6 pt-16">
-      <Text className="text-4xl font-extrabold text-primary-950 mb-6">
-        My Gardens
-      </Text>
+      <Box className="flex flex-row justify-between">
+        <Text className="text-4xl font-extrabold text-primary-950 mb-6">
+          My Gardens
+        </Text>
+
+        <Button
+          variant="solid"
+          size="md"
+          className="rounded-full p-4"
+          onPress={() => setIsModalVisible(true)}
+        >
+          <ButtonIcon as={AddIcon} />
+        </Button>
+      </Box>
 
       {folders?.length === 0 ? (
         <Box className="items-center justify-center mt-32">
           <Ionicons name="leaf-outline" size={80} color="#d4d4d4" />
           <Text className="text-gray-500 text-lg mt-4 font-medium">
-            You don&apos;t have any folders yet.
+            {error || "You don't have any folders yet."}
           </Text>
         </Box>
       ) : (
@@ -73,11 +89,21 @@ export default function Plants() {
           renderItem={({ item }) => (
             <FolderCard
               name={item.name}
-              onPress={() => router.push(`/folder/${item.id}` as Href)}
+              onPress={() =>
+                router.push({
+                  pathname: "/folder/[id]",
+                  params: { id: item.id.toString(), name: item.name },
+                } as Href)
+              }
             />
           )}
         />
       )}
+      <CreateFolderModal
+        isOpen={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        onSuccess={fetchFolders}
+      />
     </Box>
   );
 }
