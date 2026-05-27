@@ -11,14 +11,18 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { Box } from "@/components/ui/box";
 import { Text } from "@/components/ui/text";
-import { deletePlant } from "@/api/plants";
+import { deletePlant, updatePlant } from "@/api/plants";
 import { getPlantDetails } from "@/api/perenual";
+import EditPlantNameModal from "@/components/app/ui/Plants/EditPlantNameModal";
 
 type PlantDetails = {
   common_name?: string;
   scientific_name?: string[] | string;
   description?: string;
-  watering?: string;
+  watering_general_benchmark?: {
+    unit?: string;
+    value?: string;
+  };
   sunlight?: string[] | string;
   cycle?: string;
   care_level?: string;
@@ -49,6 +53,18 @@ const formatValue = (value?: string[] | string) => {
   }
 
   return value || "Not available";
+};
+
+const formatWateringBenchmark = (
+  benchmark?: PlantDetails["watering_general_benchmark"]
+) => {
+  if (!benchmark?.value) {
+    return "Not available";
+  }
+
+  const value = benchmark.value.replaceAll('"', "");
+
+  return benchmark.unit ? `${value} ${benchmark.unit}` : value;
 };
 
 function DetailRow({
@@ -87,6 +103,10 @@ export default function PlantDetailsScreen() {
   const [details, setDetails] = useState<PlantDetails | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("general");
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditNameModalVisible, setIsEditNameModalVisible] = useState(false);
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [plantName, setPlantName] = useState(nickname ?? "");
+  const [nameInput, setNameInput] = useState(nickname ?? "");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -117,11 +137,44 @@ export default function PlantDetailsScreen() {
   }, [apiPlantId]);
 
   const displayName =
-    nickname || details?.common_name || formatValue(details?.scientific_name);
+    plantName || details?.common_name || formatValue(details?.scientific_name);
   const imageUrl =
     details?.default_image?.regular_url ??
     details?.default_image?.medium_url ??
     details?.default_image?.original_url;
+
+  const openEditNameModal = () => {
+    setNameInput(displayName);
+    setError("");
+    setIsEditNameModalVisible(true);
+  };
+
+  const closeEditNameModal = () => {
+    setNameInput(plantName);
+    setIsEditNameModalVisible(false);
+  };
+
+  const handleSaveName = async () => {
+    const trimmedName = nameInput.trim();
+
+    if (trimmedName.length < 2) {
+      setError("Plant name should have at least 2 characters.");
+      return;
+    }
+
+    try {
+      setIsSavingName(true);
+      setError("");
+      await updatePlant(id, { nickname: trimmedName });
+      setPlantName(trimmedName);
+      setIsEditNameModalVisible(false);
+    } catch (error) {
+      setError("Error at updating the plant name");
+      console.error("Error at updating plant name", error);
+    } finally {
+      setIsSavingName(false);
+    }
+  };
 
   const handleDeletePlant = () => {
     Alert.alert(
@@ -181,6 +234,14 @@ export default function PlantDetailsScreen() {
                 {displayName}
               </Text>
             </Box>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={openEditNameModal}
+              className="w-11 h-11 rounded-full bg-white items-center justify-center border border-gray-100"
+            >
+              <Ionicons name="pencil-outline" size={21} color="#14532d" />
+            </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.7}
@@ -261,7 +322,9 @@ export default function PlantDetailsScreen() {
               <DetailRow
                 icon="repeat-outline"
                 label="Watering period"
-                value={formatValue(details?.watering)}
+                value={formatWateringBenchmark(
+                  details?.watering_general_benchmark
+                )}
               />
               <DetailRow
                 icon="sunny-outline"
@@ -294,6 +357,15 @@ export default function PlantDetailsScreen() {
           )}
         </Box>
       </ScrollView>
+
+      <EditPlantNameModal
+        isOpen={isEditNameModalVisible}
+        isSaving={isSavingName}
+        name={nameInput}
+        onChangeName={setNameInput}
+        onClose={closeEditNameModal}
+        onSave={handleSaveName}
+      />
     </Box>
   );
 }

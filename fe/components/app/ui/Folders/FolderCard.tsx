@@ -7,14 +7,9 @@ import { Ionicons } from "@expo/vector-icons";
 interface FolderCardProps {
   name: string;
   onPress: () => void;
-  onDelete: () => void;
 }
 
-export default function FolderCard({
-  name,
-  onPress,
-  onDelete,
-}: FolderCardProps) {
+export default function FolderCard({ name, onPress }: FolderCardProps) {
   return (
     <Box className="flex-row items-center justify-between bg-white p-4 rounded-2xl mb-4 shadow-soft-1 border border-gray-50">
       <TouchableOpacity
@@ -26,19 +21,14 @@ export default function FolderCard({
           <Ionicons name="folder-open" size={24} color="#22c55e" />
         </Box>
 
-        <Text className="flex-1 text-xl font-bold text-gray-800" numberOfLines={1}>
+        <Text
+          className="flex-1 text-xl font-bold text-gray-800"
+          numberOfLines={1}
+        >
           {name}
         </Text>
 
         <Ionicons name="chevron-forward" size={24} color="#a3a3a3" />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={onDelete}
-        className="ml-3 w-10 h-10 rounded-full bg-red-50 items-center justify-center"
-      >
-        <Ionicons name="trash-outline" size={21} color="#ef4444" />
       </TouchableOpacity>
     </Box>
   );

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { FlatList, ActivityIndicator, Alert } from "react-native";
-import { useRouter, Href } from "expo-router";
+import { useFocusEffect, useRouter, Href } from "expo-router";
 
 import { Text } from "@/components/ui/text";
 import { Box } from "@/components/ui/box";
@@ -26,9 +26,11 @@ export default function Plants() {
 
   const router = useRouter();
 
-  const fetchFolders = async () => {
+  const fetchFolders = useCallback(async (showLoader = true) => {
     try {
-      setIsLoading(true);
+      if (showLoader) {
+        setIsLoading(true);
+      }
       setError("");
 
       const response = await getFolders();
@@ -42,36 +44,13 @@ export default function Plants() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchFolders();
   }, []);
 
-  const handleDeleteFolder = (folder: Folder) => {
-    Alert.alert(
-      "Delete garden",
-      `Are you sure you want to delete "${folder.name}"? All plants inside it will be deleted too.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteFolder(folder.id);
-              setFolders((currentFolders) =>
-                currentFolders.filter((item) => item.id !== folder.id)
-              );
-            } catch (error) {
-              setError("Error at deleting the folder");
-              console.error("Error at deleting folder", error);
-            }
-          },
-        },
-      ]
-    );
-  };
+  useFocusEffect(
+    useCallback(() => {
+      fetchFolders(false);
+    }, [fetchFolders]),
+  );
 
   if (isLoading) {
     return (
@@ -114,7 +93,6 @@ export default function Plants() {
           renderItem={({ item }) => (
             <FolderCard
               name={item.name}
-              onDelete={() => handleDeleteFolder(item)}
               onPress={() =>
                 router.push({
                   pathname: "/folder/[id]",
@@ -128,7 +106,7 @@ export default function Plants() {
       <CreateFolderModal
         isOpen={isModalVisible}
         onClose={() => setIsModalVisible(false)}
-        onSuccess={fetchFolders}
+        onSuccess={() => fetchFolders()}
       />
     </Box>
   );

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   TouchableOpacity,
@@ -11,6 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Box } from "@/components/ui/box";
 import { Text } from "@/components/ui/text";
 import { getPlantsByFolder } from "@/api/plants";
+import { deleteFolder } from "@/api/folders";
+import FolderModal from "@/components/app/ui/Folders/FolderModal";
 
 type Plant = {
   id: number;
@@ -39,9 +42,9 @@ export default function FolderPlants() {
   const [plants, setPlants] = useState<Plant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [folderName, setFolderName] = useState(name ?? "Garden");
   const [error, setError] = useState("");
-
-  const folderName = name ?? "Garden";
 
   const fetchPlants = useCallback(
     async (showLoader = true) => {
@@ -82,6 +85,29 @@ export default function FolderPlants() {
     fetchPlants(false);
   };
 
+  const handleDeleteFolder = () => {
+    Alert.alert(
+      "Delete garden",
+      `Are you sure you want to delete "${folderName}"? All plants inside it will be deleted too.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteFolder(id);
+              router.back();
+            } catch (error) {
+              setError("Error at deleting the garden");
+              console.error("Error at deleting garden", error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <Box className="flex-1 justify-center items-center bg-background-light">
@@ -112,6 +138,22 @@ export default function FolderPlants() {
             {folderName}
           </Text>
         </Box>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => setIsEditModalVisible(true)}
+          className="w-11 h-11 rounded-full bg-white items-center justify-center border border-gray-100"
+        >
+          <Ionicons name="pencil-outline" size={21} color="#14532d" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleDeleteFolder}
+          className="w-11 h-11 rounded-full bg-red-50 items-center justify-center border border-red-100"
+        >
+          <Ionicons name="trash-outline" size={22} color="#ef4444" />
+        </TouchableOpacity>
       </Box>
 
       {error ? (
@@ -180,6 +222,17 @@ export default function FolderPlants() {
           )}
         />
       )}
+
+      <FolderModal
+        isOpen={isEditModalVisible}
+        onClose={() => setIsEditModalVisible(false)}
+        onSuccess={(updatedName) => {
+          if (updatedName) {
+            setFolderName(updatedName);
+          }
+        }}
+        folderToEdit={{ id: Number(id), name: folderName }}
+      />
     </Box>
   );
 }
