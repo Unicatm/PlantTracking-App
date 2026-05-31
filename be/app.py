@@ -1,3 +1,4 @@
+from datetime import timedelta
 import os
 from flask import Flask
 from dotenv import load_dotenv
@@ -22,6 +23,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{os.getenv('DB_USER')}
 
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'default-jwt-secret')
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=30)
 
 db.init_app(app)
 jwt.init_app(app)

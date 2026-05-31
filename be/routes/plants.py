@@ -1,11 +1,13 @@
 from flask import Blueprint,jsonify,request
 from flask_jwt_extended import jwt_required,get_jwt_identity
+import requests
 from models.models import db, UserPlant
 from datetime import datetime
 
 import PIL.Image
 from google import genai
 import os 
+import re
 
 plants_bp = Blueprint('plants',__name__,url_prefix="/api/plants")
 
@@ -154,7 +156,7 @@ def identify_plant():
         response = client.models.generate_content(
             model="gemini-2.5-flash", 
             contents=[
-                "Give me the scientific name of that plant and only that, without any aditional text.",
+                "What is the scientific name of this plant? Return ONLY the standard Genus and species (e.g., Monstera deliciosa). Do not include any punctuation, formatting, asterisks, or extra words.",
                 img
             ]
         )
@@ -168,3 +170,41 @@ def identify_plant():
 
     except Exception as e:
         return jsonify({"error": f"Error processing the image: {str(e)}"}), 500
+    
+
+PERENUAL_BASE_URL = "https://perenual.com/api/v2"    
+
+@plants_bp.route("/search-perenual", methods=['GET'], strict_slashes=False)
+@jwt_required()
+def search_perenual():
+    raw_query = request.args.get('q')
+    
+    if not raw_query:
+        return jsonify({"error": "No search query provided!"}), 400
+
+    clean_query = re.sub(r'[^a-zA-Z\s]', '', raw_query).strip()
+    
+    words = clean_query.split()
+    if len(words) > 2:
+        clean_query = f"{words[0]} {words[1]}"
+
+    print(f"Caut in Perenual exact asta: '{clean_query}'")
+
+    perenual_key = os.getenv("PERENUAL_PLANT_API_KEY")
+    url = f"{PERENUAL_BASE_URL}/species-list"
+
+    try:
+        response = requests.get(url, params={
+            "key": perenual_key,
+            "q": clean_query
+        })
+        data = response.json()
+
+        print(f"Perenual a returnat {len(data.get('data', []))} rezultate.")
+        
+        return jsonify({
+            "status": "success", 
+            "data": data.get('data', [])
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Error contacting Perenual: {str(e)}"}), 500

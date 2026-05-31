@@ -14,6 +14,7 @@ import { Text } from "@/components/ui/text";
 import { getPlantsByFolder } from "@/api/plants";
 import { deleteFolder } from "@/api/folders";
 import FolderModal from "@/components/app/ui/Folders/FolderModal";
+import AddPlantModal from "@/components/app/ui/Plants/AddPlantModal";
 
 type Plant = {
   id: number;
@@ -43,6 +44,7 @@ export default function FolderPlants() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isAddPlantModalVisible, setIsAddPlantModalVisible] = useState(false);
   const [folderName, setFolderName] = useState(name ?? "Garden");
   const [error, setError] = useState("");
 
@@ -149,6 +151,14 @@ export default function FolderPlants() {
 
         <TouchableOpacity
           activeOpacity={0.7}
+          onPress={() => setIsAddPlantModalVisible(true)}
+          className="w-11 h-11 rounded-full bg-primary-500 items-center justify-center"
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
           onPress={handleDeleteFolder}
           className="w-11 h-11 rounded-full bg-red-50 items-center justify-center border border-red-100"
         >
@@ -232,6 +242,13 @@ export default function FolderPlants() {
           }
         }}
         folderToEdit={{ id: Number(id), name: folderName }}
+      />
+
+      <AddPlantModal
+        folderId={id}
+        isOpen={isAddPlantModalVisible}
+        onClose={() => setIsAddPlantModalVisible(false)}
+        onSuccess={() => fetchPlants(false)}
       />
     </Box>
   );

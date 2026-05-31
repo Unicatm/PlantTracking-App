@@ -23,3 +23,12 @@ export const deletePlant = async (plantId) => {
   const response = await api.delete(`/plants/${plantId}`);
   return response.data;
 };
+
+export const identifyPlant = async (formData) => {
+  const response = await api.post("/plants/identify", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return response.data;
+};
