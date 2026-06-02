@@ -30,8 +30,23 @@ class UserPlant(db.Model):
     id = db.Column(db.Integer, primary_key=True,autoincrement=True)
     nickname = db.Column(db.String(100), nullable=False)
     api_plant_id = db.Column(db.Integer, nullable=False)
-    last_watered = db.Column(db.DateTime, default=datetime.now())
+    last_watered = db.Column(db.DateTime, nullable=True)
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True)
+
+    watering_history = db.relationship(
+        'PlantWateringHistory',
+        backref='plant',
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+class PlantWateringHistory(db.Model):
+    __tablename__='plant_watering_history'
+
+    id = db.Column(db.Integer, primary_key=True,autoincrement=True)
+    watered_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    plant_id = db.Column(db.Integer, db.ForeignKey('user_plants.id'), nullable=False)
 

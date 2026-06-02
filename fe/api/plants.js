@@ -19,6 +19,16 @@ export const updatePlant = async (plantId, data) => {
   return response.data;
 };
 
+export const waterPlant = async (plantId, data = {}) => {
+  const response = await api.post(`/plants/${plantId}/water`, data);
+  return response.data;
+};
+
+export const getPlantWaterings = async (plantId) => {
+  const response = await api.get(`/plants/${plantId}/waterings`);
+  return response.data;
+};
+
 export const deletePlant = async (plantId) => {
   const response = await api.delete(`/plants/${plantId}`);
   return response.data;

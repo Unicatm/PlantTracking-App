@@ -1,7 +1,7 @@
 from flask import Blueprint,jsonify,request
 from flask_jwt_extended import jwt_required,get_jwt_identity
 import requests
-from models.models import db, UserPlant
+from models.models import db, UserPlant, PlantWateringHistory
 from datetime import datetime
 
 import PIL.Image
@@ -10,6 +10,24 @@ import os
 import re
 
 plants_bp = Blueprint('plants',__name__,url_prefix="/api/plants")
+
+def serialize_watering(watering):
+    return {
+        "id": watering.id,
+        "plant_id": watering.plant_id,
+        "watered_at": watering.watered_at.isoformat() if watering.watered_at else None
+    }
+
+def get_user_plant_or_404(plant_id, user_id):
+    plant = db.session.get(UserPlant, plant_id)
+
+    if not plant:
+        return None, (jsonify({"error": "The plant does not exist!"}), 404)
+
+    if plant.user_id != user_id:
+        return None, (jsonify({"error":"You aren't authorized to access that plant!"}), 403)
+
+    return plant, None
 
 @plants_bp.route("/",methods=["GET"])
 @jwt_required()
@@ -79,13 +97,10 @@ def add_plant():
 @jwt_required()
 def update_plant(plant_id):
     user_id = int(get_jwt_identity())
-    plant = db.session.get(UserPlant,plant_id)
+    plant, error_response = get_user_plant_or_404(plant_id, user_id)
 
-    if not plant:
-        return jsonify({"error": "The plant does not exist!"}), 404
-
-    if plant.user_id != user_id:
-        return jsonify({"error":"You aren't authorized to delete that plant!"})
+    if error_response:
+        return error_response
     
     data = request.get_json()
 
@@ -96,6 +111,10 @@ def update_plant(plant_id):
         try:
             date_string = data['last_watered'].replace('Z', '+00:00')
             plant.last_watered = datetime.fromisoformat(date_string)
+            db.session.add(PlantWateringHistory(
+                plant_id=plant.id,
+                watered_at=plant.last_watered
+            ))
         except ValueError:
             return jsonify({"error": "Invalid format"}), 400
         
@@ -105,10 +124,73 @@ def update_plant(plant_id):
         return jsonify({
             "status": "success",
             "message": f"The plant was updated succesfully!",
+            "data": {
+                "id": plant.id,
+                "nickname": plant.nickname,
+                "api_plant_id": plant.api_plant_id,
+                "folder_id": plant.folder_id,
+                "last_watered": plant.last_watered.isoformat() if plant.last_watered else None
+            }
         }), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Error updating the plant: {str(e)}"}), 500   
+
+@plants_bp.route("/<int:plant_id>/water",methods=['POST'])
+@jwt_required()
+def water_plant(plant_id):
+    user_id = int(get_jwt_identity())
+    plant, error_response = get_user_plant_or_404(plant_id, user_id)
+
+    if error_response:
+        return error_response
+
+    data = request.get_json(silent=True) or {}
+    watered_at = datetime.now()
+
+    if data.get('watered_at'):
+        try:
+            date_string = data['watered_at'].replace('Z', '+00:00')
+            watered_at = datetime.fromisoformat(date_string)
+        except ValueError:
+            return jsonify({"error": "Invalid format"}), 400
+
+    try:
+        plant.last_watered = watered_at
+        watering = PlantWateringHistory(plant_id=plant.id, watered_at=watered_at)
+
+        db.session.add(watering)
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": "The plant was watered succesfully!",
+            "data": {
+                "last_watered": plant.last_watered.isoformat() if plant.last_watered else None,
+                "watering": serialize_watering(watering)
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error watering the plant: {str(e)}"}), 500
+
+@plants_bp.route("/<int:plant_id>/waterings",methods=['GET'])
+@jwt_required()
+def get_plant_waterings(plant_id):
+    user_id = int(get_jwt_identity())
+    plant, error_response = get_user_plant_or_404(plant_id, user_id)
+
+    if error_response:
+        return error_response
+
+    waterings = PlantWateringHistory.query.filter_by(
+        plant_id=plant.id
+    ).order_by(PlantWateringHistory.watered_at.desc()).all()
+
+    return jsonify({
+        "status": "success",
+        "data": [serialize_watering(watering) for watering in waterings]
+    }), 200
     
 
 @plants_bp.route("/<int:plant_id>",methods=['DELETE'])

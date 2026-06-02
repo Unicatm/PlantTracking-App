@@ -1,93 +1,30 @@
-import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Alert, ScrollView } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
 import { Box } from "@/components/ui/box";
 import { Text } from "@/components/ui/text";
-import { deletePlant, updatePlant } from "@/api/plants";
+import {
+  deletePlant,
+  getPlantWaterings,
+  updatePlant,
+  waterPlant,
+} from "@/api/plants";
 import { getPlantDetails } from "@/api/perenual";
 import EditPlantNameModal from "@/components/app/ui/Plants/EditPlantNameModal";
-
-type PlantDetails = {
-  common_name?: string;
-  scientific_name?: string[] | string;
-  description?: string;
-  watering_general_benchmark?: {
-    unit?: string;
-    value?: string;
-  };
-  sunlight?: string[] | string;
-  cycle?: string;
-  care_level?: string;
-  default_image?: {
-    regular_url?: string;
-    medium_url?: string;
-    original_url?: string;
-  };
-};
-
-type ActiveTab = "general" | "details";
-
-const formatWateringDate = (date: string) => {
-  if (!date) {
-    return "Not watered yet";
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(date));
-};
-
-const formatValue = (value?: string[] | string) => {
-  if (Array.isArray(value)) {
-    return value.length > 0 ? value.join(", ") : "Not available";
-  }
-
-  return value || "Not available";
-};
-
-const formatWateringBenchmark = (
-  benchmark?: PlantDetails["watering_general_benchmark"]
-) => {
-  if (!benchmark?.value) {
-    return "Not available";
-  }
-
-  const value = benchmark.value.replaceAll('"', "");
-
-  return benchmark.unit ? `${value} ${benchmark.unit}` : value;
-};
-
-function DetailRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
-  return (
-    <Box className="flex-row items-center gap-4 bg-white rounded-2xl p-4 mb-3 border border-gray-50">
-      <Box className="w-11 h-11 rounded-full bg-primary-100 items-center justify-center">
-        <Ionicons name={icon} size={22} color="#22c55e" />
-      </Box>
-      <Box className="flex-1">
-        <Text className="text-gray-500 text-sm font-medium">{label}</Text>
-        <Text className="text-gray-800 text-base font-bold mt-1">{value}</Text>
-      </Box>
-    </Box>
-  );
-}
+import GeneralPlantInfo from "@/components/app/ui/Plants/PlantDetails/GeneralPlantInfo";
+import PlantDescription from "@/components/app/ui/Plants/PlantDetails/PlantDescription";
+import PlantHeader from "@/components/app/ui/Plants/PlantDetails/PlantHeader";
+import PlantImageCard from "@/components/app/ui/Plants/PlantDetails/PlantImageCard";
+import PlantTabs from "@/components/app/ui/Plants/PlantDetails/PlantTabs";
+import WaterPlantButton from "@/components/app/ui/Plants/PlantDetails/WaterPlantButton";
+import WateringHistory from "@/components/app/ui/Plants/PlantDetails/WateringHistory";
+import { formatValue } from "@/components/app/ui/Plants/PlantDetails/formatters";
+import type {
+  PlantDetails,
+  PlantDetailsTab,
+  Watering,
+} from "@/components/app/ui/Plants/PlantDetails/types";
 
 export default function PlantDetailsScreen() {
   const router = useRouter();
@@ -101,13 +38,35 @@ export default function PlantDetailsScreen() {
     }>();
 
   const [details, setDetails] = useState<PlantDetails | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("general");
+  const [activeTab, setActiveTab] = useState<PlantDetailsTab>("general");
   const [isLoading, setIsLoading] = useState(true);
   const [isEditNameModalVisible, setIsEditNameModalVisible] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
+  const [isWatering, setIsWatering] = useState(false);
   const [plantName, setPlantName] = useState(nickname ?? "");
   const [nameInput, setNameInput] = useState(nickname ?? "");
+  const [currentLastWatered, setCurrentLastWatered] = useState(
+    lastWatered ?? ""
+  );
+  const [wateringHistory, setWateringHistory] = useState<Watering[]>([]);
   const [error, setError] = useState("");
+
+  const fetchWateringHistory = useCallback(async () => {
+    if (!id) {
+      return;
+    }
+
+    try {
+      const response = await getPlantWaterings(id);
+
+      if (response.status === "success") {
+        setWateringHistory(response.data ?? []);
+      }
+    } catch (error) {
+      setError("Error at getting watering history");
+      console.error("Error at getting watering history", error);
+    }
+  }, [id]);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -134,7 +93,8 @@ export default function PlantDetailsScreen() {
     };
 
     fetchDetails();
-  }, [apiPlantId]);
+    fetchWateringHistory();
+  }, [apiPlantId, fetchWateringHistory]);
 
   const displayName =
     plantName || details?.common_name || formatValue(details?.scientific_name);
@@ -176,6 +136,33 @@ export default function PlantDetailsScreen() {
     }
   };
 
+  const handleWaterPlant = async () => {
+    try {
+      setIsWatering(true);
+      setError("");
+
+      const response = await waterPlant(id);
+
+      if (response.status === "success") {
+        setCurrentLastWatered(response.data?.last_watered ?? "");
+
+        if (response.data?.watering) {
+          setWateringHistory((history) => [
+            response.data.watering,
+            ...history,
+          ]);
+        } else {
+          fetchWateringHistory();
+        }
+      }
+    } catch (error) {
+      setError("Error at updating watering date");
+      console.error("Error at watering plant", error);
+    } finally {
+      setIsWatering(false);
+    }
+  };
+
   const handleDeletePlant = () => {
     Alert.alert(
       "Delete plant",
@@ -214,146 +201,36 @@ export default function PlantDetailsScreen() {
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         <Box className="px-6 pt-16">
-          <Box className="flex-row items-center gap-4 mb-5">
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => router.back()}
-              className="w-11 h-11 rounded-full bg-white items-center justify-center border border-gray-100"
-            >
-              <Ionicons name="chevron-back" size={24} color="#14532d" />
-            </TouchableOpacity>
+          <PlantHeader
+            displayName={displayName}
+            folderName={folderName}
+            onBack={() => router.back()}
+            onEditName={openEditNameModal}
+            onDeletePlant={handleDeletePlant}
+          />
 
-            <Box className="flex-1">
-              <Text className="text-sm font-semibold text-primary-600">
-                {folderName || "My Garden"}
-              </Text>
-              <Text
-                className="text-3xl font-extrabold text-primary-950"
-                numberOfLines={1}
-              >
-                {displayName}
-              </Text>
-            </Box>
+          <PlantImageCard imageUrl={imageUrl} />
 
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={openEditNameModal}
-              className="w-11 h-11 rounded-full bg-white items-center justify-center border border-gray-100"
-            >
-              <Ionicons name="pencil-outline" size={21} color="#14532d" />
-            </TouchableOpacity>
+          <WaterPlantButton
+            isWatering={isWatering}
+            onWaterPlant={handleWaterPlant}
+          />
 
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleDeletePlant}
-              className="w-11 h-11 rounded-full bg-red-50 items-center justify-center border border-red-100"
-            >
-              <Ionicons name="trash-outline" size={22} color="#ef4444" />
-            </TouchableOpacity>
-          </Box>
-
-          <Box className="h-56 rounded-3xl overflow-hidden bg-primary-100 border border-primary-200 mb-6 items-center justify-center">
-            {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
-                className="w-full h-full"
-                resizeMode="cover"
-              />
-            ) : (
-              <Box className="items-center px-8">
-                <Box className="w-16 h-16 rounded-full bg-white items-center justify-center mb-3">
-                  <Ionicons name="camera-outline" size={30} color="#22c55e" />
-                </Box>
-                <Text className="text-primary-900 font-bold text-center">
-                  Plant photo
-                </Text>
-                <Text className="text-primary-700 text-center mt-1">
-                  Space reserved for uploading your own plant photo later.
-                </Text>
-              </Box>
-            )}
-          </Box>
-
-          <Box className="flex-row bg-white rounded-2xl p-1 mb-5 border border-gray-100">
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setActiveTab("general")}
-              className={`flex-1 py-3 rounded-xl items-center ${
-                activeTab === "general" ? "bg-primary-500" : "bg-transparent"
-              }`}
-            >
-              <Text
-                className={`font-bold ${
-                  activeTab === "general" ? "text-white" : "text-gray-500"
-                }`}
-              >
-                General
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => setActiveTab("details")}
-              className={`flex-1 py-3 rounded-xl items-center ${
-                activeTab === "details" ? "bg-primary-500" : "bg-transparent"
-              }`}
-            >
-              <Text
-                className={`font-bold ${
-                  activeTab === "details" ? "text-white" : "text-gray-500"
-                }`}
-              >
-                Details
-              </Text>
-            </TouchableOpacity>
-          </Box>
+          <PlantTabs activeTab={activeTab} onChangeTab={setActiveTab} />
 
           {error ? (
             <Box className="bg-red-50 border border-red-100 rounded-2xl p-4">
               <Text className="text-red-600 font-medium">{error}</Text>
             </Box>
           ) : activeTab === "general" ? (
-            <Box>
-              <DetailRow
-                icon="water-outline"
-                label="Last watered"
-                value={formatWateringDate(lastWatered ?? "")}
-              />
-              <DetailRow
-                icon="repeat-outline"
-                label="Watering period"
-                value={formatWateringBenchmark(
-                  details?.watering_general_benchmark
-                )}
-              />
-              <DetailRow
-                icon="sunny-outline"
-                label="Light preference"
-                value={formatValue(details?.sunlight)}
-              />
-              <DetailRow
-                icon="leaf-outline"
-                label="Growth cycle"
-                value={formatValue(details?.cycle)}
-              />
-              <DetailRow
-                icon="heart-outline"
-                label="Care level"
-                value={formatValue(details?.care_level)}
-              />
-            </Box>
+            <GeneralPlantInfo
+              details={details}
+              lastWatered={currentLastWatered}
+            />
+          ) : activeTab === "details" ? (
+            <PlantDescription details={details} displayName={displayName} />
           ) : (
-            <Box className="bg-white rounded-2xl p-5 border border-gray-50">
-              <Text className="text-xl font-bold text-gray-800 mb-2">
-                {details?.common_name || displayName}
-              </Text>
-              <Text className="text-gray-500 font-medium mb-4">
-                Scientific name: {formatValue(details?.scientific_name)}
-              </Text>
-              <Text className="text-gray-700 leading-6">
-                {details?.description || "No description available yet."}
-              </Text>
-            </Box>
+            <WateringHistory waterings={wateringHistory} />
           )}
         </Box>
       </ScrollView>

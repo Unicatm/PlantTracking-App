@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,7 +6,7 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Box } from "@/components/ui/box";
@@ -78,9 +78,11 @@ export default function FolderPlants() {
     [id]
   );
 
-  useEffect(() => {
-    fetchPlants();
-  }, [fetchPlants]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchPlants();
+    }, [fetchPlants])
+  );
 
   const onRefresh = () => {
     setIsRefreshing(true);
